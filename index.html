@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- NOTE: iOS 18 standalone PWA has a keyboard suppression bug.
+     Disabled apple-mobile-web-app-capable so home screen icon launches
+     in normal Safari mode (URL bar visible) where input works correctly. -->
 <meta name="apple-mobile-web-app-title" content="体重マネージャー">
 <meta name="theme-color" content="#1f7ae0">
 <title>体重マネージャー</title>
@@ -333,6 +336,51 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
     <h1>体重マネージャーへようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v1.3 (2026-05-07 keyboard-fix)</div>
+  </section>
+
+  <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
+  <section id="setupScreen" style="display: none;">
+    <div class="card">
+      <h2 id="setupTitle">プロフィール作成</h2>
+      <p class="sub">基礎代謝の計算と目標管理に使います。あとで設定タブから変更できます。</p>
+      <div class="field"><label for="suName">表示名</label><input type="text" id="suName" placeholder="例) たくろう" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field">
+          <label for="suGender">性別</label>
+          <select id="suGender">
+            <option value="male">男性</option>
+            <option value="female">女性</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="suBirthYear">生年</label>
+          <input type="text" id="suBirthYear" inputmode="numeric" placeholder="1990" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="suHeight">身長 (cm)</label><input type="text" id="suHeight" inputmode="decimal" autocomplete="off"></div>
+        <div class="field"><label for="suStartWeight">現在体重 (kg)</label><input type="text" id="suStartWeight" inputmode="decimal" autocomplete="off"></div>
+      </div>
+      <div class="field">
+        <label for="suActivity">活動レベル</label>
+        <select id="suActivity">
+          <option value="1.2">ほぼ運動なし (デスクワーク)</option>
+          <option value="1.375" selected>軽い運動 (週1〜3回)</option>
+          <option value="1.55">中程度 (週3〜5回)</option>
+          <option value="1.725">激しい運動 (週6〜7回)</option>
+          <option value="1.9">非常に激しい</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="suGoalWeight">目標体重 (kg)</label><input type="text" id="suGoalWeight" inputmode="decimal" autocomplete="off"></div>
+        <div class="field"><label for="suGoalDate">目標日</label><input type="date" id="suGoalDate"></div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="btn btn-ghost" id="setupCancelBtn" style="flex:1;">キャンセル</button>
+        <button class="btn btn-primary" id="setupSaveBtn" style="flex:2;">作成</button>
+      </div>
+    </div>
   </section>
 
   <!-- ===== Home tab ===== -->
@@ -508,7 +556,7 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v1.0
+      v1.3 (2026-05-07 keyboard-fix)
     </div>
   </section>
 
@@ -536,49 +584,6 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
   </div>
 </div>
 
-<!-- ===== Setup modal (first profile / new profile) ===== -->
-<div class="modal-overlay" id="setupModal">
-  <div class="modal">
-    <h2 id="setupTitle">プロフィール作成</h2>
-    <p class="sub">基礎代謝の計算と目標管理に使います。あとで設定タブから変更できます。</p>
-    <div class="field"><label for="suName">表示名</label><input type="text" id="suName" placeholder="例) たくろう"></div>
-    <div class="field-row">
-      <div class="field">
-        <label for="suGender">性別</label>
-        <select id="suGender">
-          <option value="male">男性</option>
-          <option value="female">女性</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="suBirthYear">生年</label>
-        <input type="text" id="suBirthYear" inputmode="numeric" placeholder="1990">
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label for="suHeight">身長 (cm)</label><input type="text" id="suHeight" inputmode="decimal"></div>
-      <div class="field"><label for="suStartWeight">現在体重 (kg)</label><input type="text" id="suStartWeight" inputmode="decimal"></div>
-    </div>
-    <div class="field">
-      <label for="suActivity">活動レベル</label>
-      <select id="suActivity">
-        <option value="1.2">ほぼ運動なし (デスクワーク)</option>
-        <option value="1.375" selected>軽い運動 (週1〜3回)</option>
-        <option value="1.55">中程度 (週3〜5回)</option>
-        <option value="1.725">激しい運動 (週6〜7回)</option>
-        <option value="1.9">非常に激しい</option>
-      </select>
-    </div>
-    <div class="field-row">
-      <div class="field"><label for="suGoalWeight">目標体重 (kg)</label><input type="text" id="suGoalWeight" inputmode="decimal"></div>
-      <div class="field"><label for="suGoalDate">目標日</label><input type="date" id="suGoalDate"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" id="setupCancelBtn">キャンセル</button>
-      <button class="btn btn-primary" id="setupSaveBtn">作成</button>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ============================================================
@@ -1616,7 +1621,7 @@ function openProfileModal() {
 }
 function closeProfileModal() { $('profileModal').classList.remove('show'); }
 
-function openSetupModal(forNew = false) {
+function openSetupScreen(forNew = false) {
   // 初期値 (生年デフォルトは30歳前後)
   $('suName').value = '';
   $('suGender').value = 'male';
@@ -1627,9 +1632,20 @@ function openSetupModal(forNew = false) {
   $('suGoalWeight').value = '65';
   $('suGoalDate').value = addMonths(todayStr(), 3);
   $('setupTitle').textContent = forNew ? '新規プロフィール作成' : 'プロフィール作成';
-  $('setupModal').classList.add('show');
+  // 他の画面を全て隠してsetupScreenだけ表示
+  $('welcomeScreen').style.display = 'none';
+  $('appHeader').style.display = 'none';
+  $('bottomNav').style.display = 'none';
+  document.querySelectorAll('.tab-page').forEach(el => el.classList.remove('active'));
+  $('setupScreen').style.display = 'block';
+  $('setupScreen').dataset.forNew = forNew ? '1' : '0';
+  window.scrollTo(0, 0);
 }
-function closeSetupModal() { $('setupModal').classList.remove('show'); }
+function closeSetupScreen() {
+  $('setupScreen').style.display = 'none';
+  // 元の画面に戻す
+  render();
+}
 
 function handleSetupSave() {
   const data = {
@@ -1658,10 +1674,10 @@ function handleSetupSave() {
   if (!isFinite(gw) || gw < 20 || gw > 300) { alert('目標体重は 20〜300 kg で入力してください'); return; }
 
   createProfile(data);
-  closeSetupModal();
+  $('setupScreen').style.display = 'none';
   closeProfileModal();
-  switchTab('tabHome');
   render();
+  switchTab('tabHome');
 }
 
 /* ============================================================
@@ -1669,7 +1685,7 @@ function handleSetupSave() {
    ============================================================ */
 function bindEvents() {
   // welcome
-  $('welcomeStartBtn').addEventListener('click', () => openSetupModal(false));
+  $('welcomeStartBtn').addEventListener('click', () => openSetupScreen(false));
 
   // tabs
   document.querySelectorAll('.bottom-nav button').forEach(b => {
@@ -1679,14 +1695,14 @@ function bindEvents() {
   // profile modal
   $('profileSwitchBtn').addEventListener('click', openProfileModal);
   $('profileCancelBtn').addEventListener('click', closeProfileModal);
-  $('profileAddBtn').addEventListener('click', () => openSetupModal(true));
+  $('profileAddBtn').addEventListener('click', () => { closeProfileModal(); openSetupScreen(true); });
   $('profileList').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act="switch-profile"]');
     if (btn) { switchProfile(btn.dataset.id); closeProfileModal(); render(); switchTab('tabHome'); }
   });
 
-  // setup modal
-  $('setupCancelBtn').addEventListener('click', closeSetupModal);
+  // setup screen (inline, not modal)
+  $('setupCancelBtn').addEventListener('click', closeSetupScreen);
   $('setupSaveBtn').addEventListener('click', handleSetupSave);
 
   // weight form
