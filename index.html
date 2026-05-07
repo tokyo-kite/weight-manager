@@ -441,6 +441,69 @@ main {
 .meal-header .sub { color: var(--text-sub); font-size: 11px; }
 .meal-empty { color: var(--text-sub); font-size: 12px; padding: 6px 0; font-style: italic; }
 
+/* Autocomplete dropdown */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(28,36,52,0.12);
+  display: none;
+}
+.autocomplete-list.show { display: block; }
+.autocomplete-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:active { background: var(--primary-soft); }
+.autocomplete-item .name { font-size: 14px; font-weight: 600; }
+.autocomplete-item .kcal { font-size: 12px; color: var(--text-sub); white-space: nowrap; }
+
+/* AI estimate button + result */
+.kcal-row { display: flex; gap: 6px; align-items: stretch; }
+.kcal-row > input { flex: 1; min-width: 0; }
+.ai-btn {
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #6b46c1, #1f7ae0);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-btn:active { opacity: 0.85; }
+.ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ai-result {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--primary-soft);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--primary);
+  display: none;
+  line-height: 1.5;
+}
+.ai-result.show { display: block; }
+.ai-result.error { background: var(--danger-soft); color: var(--danger); }
+
 /* Checkbox row */
 .check-row {
   display: flex;
@@ -533,7 +596,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v2.2 (2026-05-07 daily x-axis scroll)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.0 (2026-05-07 hybrid food DB + AI)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -635,15 +698,20 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
         <div class="chips" id="foodQuickChips"></div>
       </div>
       <div class="field-row">
-        <div class="field">
+        <div class="field autocomplete-wrap">
           <label for="foodName">食品名</label>
           <input type="text" id="foodName" placeholder="例) ご飯一杯" autocomplete="off">
+          <div class="autocomplete-list" id="foodAcList"></div>
         </div>
         <div class="field">
           <label for="foodKcal">カロリー (kcal)</label>
-          <input type="text" id="foodKcal" inputmode="numeric" placeholder="例) 234" autocomplete="off">
+          <div class="kcal-row">
+            <input type="text" id="foodKcal" inputmode="numeric" placeholder="例) 234" autocomplete="off">
+            <button type="button" class="ai-btn" id="aiEstimateBtn" title="AIでカロリー推定">🤖 AI</button>
+          </div>
         </div>
       </div>
+      <div class="ai-result" id="aiResult"></div>
       <label class="check-row">
         <input type="checkbox" id="saveAsQuick">
         <span>クイック追加にも保存する</span>
@@ -766,7 +834,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v2.2 (2026-05-07 daily x-axis scroll)
+      v3.0 (2026-05-07 hybrid food DB + AI)
     </div>
   </section>
 
@@ -808,24 +876,126 @@ const PRE_RESTORE_KEY = BACKUP_PREFIX + 'pre-restore';
 
 /* ---------- Default quick-add food DB (kcal: 平均的な目安) ---------- */
 const DEFAULT_FOODS = [
+  // 主食
   { name: 'ご飯一杯', kcal: 234 },
-  { name: '食パン1枚', kcal: 158 },
+  { name: '玄米ご飯一杯', kcal: 218 },
+  { name: '食パン1枚 (6枚切)', kcal: 158 },
   { name: 'おにぎり', kcal: 180 },
-  { name: 'うどん一杯', kcal: 350 },
+  { name: 'もち1個', kcal: 117 },
+  { name: 'うどん一玉', kcal: 220 },
+  { name: 'そば一玉', kcal: 230 },
+  { name: 'パスタ (乾100g)', kcal: 370 },
+  // 麺類
   { name: 'ラーメン', kcal: 500 },
-  { name: '味噌汁', kcal: 40 },
+  { name: '醤油ラーメン', kcal: 450 },
+  { name: '味噌ラーメン', kcal: 550 },
+  { name: '豚骨ラーメン', kcal: 600 },
+  { name: 'つけ麺', kcal: 650 },
+  { name: 'うどん一杯', kcal: 350 },
+  { name: 'そば一杯', kcal: 340 },
+  { name: 'きつねうどん', kcal: 430 },
+  { name: 'パスタ (ナポリタン)', kcal: 600 },
+  { name: 'カルボナーラ', kcal: 700 },
+  { name: 'ペペロンチーノ', kcal: 550 },
+  // 丼物・弁当
+  { name: '親子丼', kcal: 650 },
+  { name: '牛丼並', kcal: 730 },
+  { name: 'カツ丼', kcal: 900 },
+  { name: '天丼', kcal: 700 },
+  { name: '海鮮丼', kcal: 500 },
+  { name: 'カレーライス', kcal: 700 },
+  { name: 'のり弁', kcal: 650 },
+  { name: '唐揚げ弁当', kcal: 900 },
+  // 寿司・魚
+  { name: 'マグロ握り', kcal: 60 },
+  { name: 'サーモン握り', kcal: 70 },
+  { name: 'いくら軍艦', kcal: 70 },
+  { name: '焼き鮭1切', kcal: 150 },
+  { name: '鯖の塩焼き', kcal: 220 },
+  { name: '鯖の味噌煮', kcal: 250 },
+  { name: 'さんまの塩焼き', kcal: 200 },
+  // 肉料理
+  { name: '鶏むね肉100g', kcal: 108 },
+  { name: '鶏もも肉100g', kcal: 200 },
+  { name: '豚バラ100g', kcal: 386 },
+  { name: '牛もも100g', kcal: 165 },
+  { name: 'ステーキ150g', kcal: 410 },
+  { name: 'ハンバーグ', kcal: 300 },
+  { name: '鶏の唐揚げ (3個)', kcal: 280 },
+  { name: '焼き鳥 (1本)', kcal: 60 },
+  { name: 'とんかつ', kcal: 500 },
+  // 卵・乳製品
   { name: '卵1個', kcal: 76 },
-  { name: '納豆1パック', kcal: 80 },
+  { name: 'ゆで卵', kcal: 76 },
+  { name: '目玉焼き', kcal: 100 },
+  { name: 'スクランブルエッグ', kcal: 200 },
   { name: '牛乳200ml', kcal: 134 },
+  { name: 'ヨーグルト100g', kcal: 60 },
+  { name: 'チーズ1切', kcal: 60 },
+  // 大豆・豆類
+  { name: '納豆1パック', kcal: 80 },
+  { name: '豆腐100g', kcal: 56 },
+  { name: '油揚げ1枚', kcal: 100 },
+  { name: '厚揚げ100g', kcal: 150 },
+  // 野菜・サラダ
+  { name: 'サラダ (普通)', kcal: 100 },
+  { name: 'グリーンサラダ', kcal: 50 },
+  { name: 'ポテトサラダ100g', kcal: 180 },
+  { name: 'コールスロー', kcal: 90 },
+  // 汁物
+  { name: '味噌汁', kcal: 40 },
+  { name: '豚汁', kcal: 150 },
+  { name: '卵スープ', kcal: 50 },
+  { name: 'コーンスープ', kcal: 80 },
+  // 中華
+  { name: '餃子 (5個)', kcal: 250 },
+  { name: '焼売 (3個)', kcal: 150 },
+  { name: 'チャーハン', kcal: 650 },
+  { name: '麻婆豆腐', kcal: 300 },
+  { name: '酢豚', kcal: 450 },
+  { name: 'エビチリ', kcal: 300 },
+  { name: '春巻き', kcal: 200 },
+  // パン・洋食
+  { name: 'カレーパン', kcal: 300 },
+  { name: 'メロンパン', kcal: 330 },
+  { name: 'あんパン', kcal: 280 },
+  { name: 'クリームパン', kcal: 310 },
+  { name: 'サンドイッチ', kcal: 300 },
+  { name: 'ピザ1切', kcal: 220 },
+  // 朝食
+  { name: 'パンケーキ', kcal: 300 },
+  { name: 'フレンチトースト', kcal: 350 },
+  { name: 'シリアル50g', kcal: 180 },
+  { name: 'グラノーラ50g', kcal: 220 },
+  // 間食・お菓子
   { name: 'バナナ1本', kcal: 86 },
   { name: 'りんご1個', kcal: 138 },
-  { name: '鶏むね肉100g', kcal: 108 },
-  { name: '豚バラ100g', kcal: 386 },
-  { name: '牛丼並', kcal: 730 },
-  { name: 'カレーライス', kcal: 700 },
+  { name: 'みかん1個', kcal: 35 },
+  { name: 'ぶどう100g', kcal: 60 },
   { name: 'チョコ1かけ', kcal: 30 },
+  { name: 'ポテトチップス1袋', kcal: 340 },
+  { name: '煎餅1枚', kcal: 80 },
+  { name: 'アイスクリーム1個', kcal: 200 },
+  { name: 'ショートケーキ1切', kcal: 340 },
+  { name: 'ドーナツ', kcal: 250 },
+  { name: 'クッキー1枚', kcal: 50 },
+  // ファストフード
+  { name: 'ハンバーガー', kcal: 280 },
+  { name: 'チーズバーガー', kcal: 310 },
+  { name: 'ビッグマック', kcal: 530 },
+  { name: 'フライドポテト (M)', kcal: 330 },
+  // 飲み物
   { name: 'ビール350ml', kcal: 140 },
+  { name: 'ワイン100ml', kcal: 73 },
+  { name: '日本酒1合', kcal: 185 },
+  { name: 'ハイボール', kcal: 120 },
+  { name: '焼酎1合', kcal: 140 },
   { name: 'コーラ500ml', kcal: 225 },
+  { name: 'オレンジジュース200ml', kcal: 90 },
+  { name: '豆乳200ml', kcal: 90 },
+  { name: 'ブラックコーヒー', kcal: 4 },
+  { name: 'カフェラテ', kcal: 120 },
+  { name: '緑茶', kcal: 0 },
 ];
 
 /* ---------- State ---------- */
@@ -1717,6 +1887,9 @@ function addFoodEntry({ name, kcal, meal }) {
   if ($('tabChart').classList.contains('active')) renderCharts();
 }
 
+// AI推定が使われたかのフラグ。ON時は customFoods に自動キャッシュ
+let aiEstimateUsed = false;
+
 function saveFoodFromForm() {
   const p = getProfile();
   const name = $('foodName').value.trim();
@@ -1728,16 +1901,17 @@ function saveFoodFromForm() {
   // 1. 本日の食事に追加
   addFoodEntry({ name, kcal, meal: currentMeal });
 
-  // 2. クイック追加への登録 (チェックボックスON時のみ)
+  // 2. クイック追加への登録
+  // - チェックボックスON or AI推定で得た値の場合は customFoods に追加 (自動学習)
   let quickAdded = false;
-  if (saveAsQuick && p) {
+  const shouldCache = saveAsQuick || aiEstimateUsed;
+  if (shouldCache && p) {
     if (!p.customFoods) p.customFoods = [];
     const existsInCustom = p.customFoods.some(f => f.name === name);
     const existsInVisibleDefault = DEFAULT_FOODS.some(f => f.name === name)
       && !(p.hiddenDefaultFoods || []).includes(name);
     if (!existsInCustom && !existsInVisibleDefault) {
       p.customFoods.unshift({ name, kcal });
-      // 非表示にしていたデフォルトと同名なら、上書きを優先するため非表示リストから削除
       if (p.hiddenDefaultFoods) p.hiddenDefaultFoods = p.hiddenDefaultFoods.filter(n => n !== name);
       saveState();
       renderCustomFoodChips();
@@ -1750,7 +1924,88 @@ function saveFoodFromForm() {
   $('foodName').value = '';
   $('foodKcal').value = '';
   $('saveAsQuick').checked = false;
+  $('aiResult').classList.remove('show');
+  aiEstimateUsed = false;
   flash(quickAdded ? '食事を記録 + クイック追加に登録' : '食事を記録しました');
+}
+
+/* ============================================================
+   FOOD AUTOCOMPLETE + AI ESTIMATE
+   ============================================================ */
+function getAllSearchableFoods(p) {
+  const seen = new Set();
+  const out = [];
+  // 優先順位: customFoods → DEFAULT_FOODS (非表示は除外)
+  (p?.customFoods || []).forEach(f => {
+    if (!seen.has(f.name)) { seen.add(f.name); out.push({ ...f, source: 'custom' }); }
+  });
+  const hidden = new Set(p?.hiddenDefaultFoods || []);
+  DEFAULT_FOODS.forEach(f => {
+    if (!seen.has(f.name) && !hidden.has(f.name)) {
+      seen.add(f.name); out.push({ ...f, source: 'default' });
+    }
+  });
+  return out;
+}
+
+function renderAutocomplete() {
+  const input = $('foodName');
+  const list = $('foodAcList');
+  if (!input || !list) return;
+  const q = input.value.trim().toLowerCase();
+  if (!q) { list.classList.remove('show'); return; }
+  const p = getProfile();
+  const all = getAllSearchableFoods(p);
+  // 前方一致を優先、次に部分一致
+  const prefix = all.filter(f => f.name.toLowerCase().startsWith(q));
+  const partial = all.filter(f => !f.name.toLowerCase().startsWith(q) && f.name.toLowerCase().includes(q));
+  const matches = [...prefix, ...partial].slice(0, 8);
+  if (matches.length === 0) { list.classList.remove('show'); return; }
+  list.innerHTML = matches.map(f => `
+    <div class="autocomplete-item" data-name="${escapeHtml(f.name)}" data-kcal="${f.kcal}">
+      <span class="name">${escapeHtml(f.name)}</span>
+      <span class="kcal">${f.kcal} kcal</span>
+    </div>
+  `).join('');
+  list.classList.add('show');
+}
+
+function hideAutocomplete() {
+  const list = $('foodAcList');
+  if (list) list.classList.remove('show');
+}
+
+async function handleAIEstimate() {
+  const name = $('foodName').value.trim();
+  if (!name) { alert('食品名を入力してください'); return; }
+  const btn = $('aiEstimateBtn');
+  const result = $('aiResult');
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⌛...';
+  result.classList.remove('show', 'error');
+  try {
+    const res = await fetch('/api/estimate-calorie', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ foodName: name }),
+    });
+    if (!res.ok) throw new Error(`サーバーエラー (${res.status})`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (!isFinite(data.kcal) || data.kcal <= 0) throw new Error('AIが値を返しませんでした');
+    $('foodKcal').value = data.kcal;
+    aiEstimateUsed = true;
+    const conf = data.confidence >= 0.7 ? '高' : data.confidence >= 0.4 ? '中' : '低';
+    result.innerHTML = `🤖 AI推定: 約 <b>${data.kcal} kcal</b> (信頼度: ${conf})${data.note ? '<br><span style="opacity:0.8;">' + escapeHtml(data.note) + '</span>' : ''}`;
+    result.classList.add('show');
+  } catch (e) {
+    result.classList.add('show', 'error');
+    result.textContent = `❌ ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 }
 
 function deleteFoodEntry(id) {
@@ -2129,6 +2384,33 @@ function bindEvents() {
     const b = e.target.closest('[data-act="del-food"]');
     if (b) deleteFoodEntry(b.dataset.id);
   });
+
+  // Food autocomplete
+  $('foodName').addEventListener('input', () => {
+    aiEstimateUsed = false;
+    $('aiResult').classList.remove('show');
+    renderAutocomplete();
+  });
+  $('foodName').addEventListener('focus', renderAutocomplete);
+  $('foodName').addEventListener('blur', () => {
+    // 候補のクリックを処理してから閉じる
+    setTimeout(hideAutocomplete, 200);
+  });
+  $('foodAcList').addEventListener('click', (e) => {
+    const item = e.target.closest('.autocomplete-item');
+    if (!item) return;
+    $('foodName').value = item.dataset.name;
+    $('foodKcal').value = item.dataset.kcal;
+    aiEstimateUsed = false;
+    hideAutocomplete();
+  });
+  $('foodKcal').addEventListener('input', () => {
+    // 手動でkcalを編集したらAIフラグクリア
+    aiEstimateUsed = false;
+  });
+
+  // AI estimate
+  $('aiEstimateBtn').addEventListener('click', handleAIEstimate);
   // chips (event delegation)
   $('foodQuickChips').addEventListener('click', (e) => {
     const add = e.target.closest('[data-act="add-quick"]');
