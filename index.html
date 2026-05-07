@@ -351,19 +351,46 @@ main {
   margin-bottom: 14px;
   align-items: stretch;
 }
-.food-meta-row > input[type="date"] {
+.date-wrap {
+  position: relative;
   flex: 0 0 auto;
-  width: 132px;
-  padding: 8px 10px;
+  width: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 14px;
-  font-family: inherit;
   background: var(--surface);
-  color: var(--text);
+}
+.date-wrap input[type="date"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  background: transparent;
   -webkit-appearance: none;
   appearance: none;
+  cursor: pointer;
+  z-index: 1;
+  /* iOSで日付ピッカーを発火させるためにクリック領域を確保 */
+  font-size: 16px;
+}
+.date-wrap .date-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  pointer-events: none;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.date-wrap .date-display .dow {
+  font-size: 13px;
+  color: var(--text-sub);
   font-weight: 600;
+  margin-left: 3px;
+  letter-spacing: 0;
 }
 .food-meta-row > .meal-tabs {
   flex: 1;
@@ -463,9 +490,28 @@ main {
   width: 100%;
   height: 240px;
 }
+.chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.chart-scroll .chart-wrap {
+  width: 100%;
+  /* JSで上書きされて広がる */
+}
+.chart-scroll-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
 
 /* ==== Input quirk fix on iOS ==== */
 input, select, textarea { font-size: 16px; touch-action: manipulation; }
+
+/* ==== Disable iOS double-tap zoom on all interactive elements ==== */
+button, a, label, .chip, .stat { touch-action: manipulation; }
 
 </style>
 </head>
@@ -487,7 +533,7 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v1.9 (2026-05-07 compact food row)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v2.2 (2026-05-07 daily x-axis scroll)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -574,7 +620,10 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
     <div class="card">
       <h2>食事を記録</h2>
       <div class="food-meta-row">
-        <input type="date" id="foodDate" aria-label="日付">
+        <label class="date-wrap">
+          <input type="date" id="foodDate" aria-label="日付">
+          <span class="date-display" id="foodDateLabel">—</span>
+        </label>
         <div class="meal-tabs" id="mealTabs">
           <button type="button" class="meal-tab" data-meal="breakfast"><span class="ic">🌅</span>朝</button>
           <button type="button" class="meal-tab active" data-meal="lunch"><span class="ic">☀️</span>昼</button>
@@ -620,7 +669,8 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
     <div class="card">
       <h2>体重推移</h2>
       <div class="sub">記録した体重と目標までの予測ライン</div>
-      <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+      <div class="chart-scroll"><div class="chart-wrap"><canvas id="weightChart"></canvas></div></div>
+      <div class="chart-scroll-hint">← 横スクロールで全期間表示 →</div>
     </div>
     <div class="card">
       <h2>カロリー収支 (直近14日)</h2>
@@ -716,7 +766,7 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v1.9 (2026-05-07 compact food row)
+      v2.2 (2026-05-07 daily x-axis scroll)
     </div>
   </section>
 
@@ -1197,14 +1247,15 @@ function renderHome() {
     <div class="progress"><div class="progress-bar" style="width:${Math.max(0, Math.min(100, progress))}%"></div></div>
   </div>`;
 
-  // 体重推移グラフ (ホーム最下部)
+  // 体重推移グラフ (ホーム最下部・横スクロール対応)
   html += `<div class="card">
     <div class="section-head">
       <h3>体重の推移</h3>
       <span style="font-size:11px;color:var(--text-sub);">${logCount} 件の記録</span>
     </div>
     ${logCount >= 2
-      ? `<div class="chart-wrap" style="height:200px;"><canvas id="homeWeightChart"></canvas></div>`
+      ? `<div class="chart-scroll"><div class="chart-wrap" style="height:200px;"><canvas id="homeWeightChart"></canvas></div></div>
+         <div class="chart-scroll-hint">← 横スクロールで全期間表示 →</div>`
       : `<div class="empty" style="padding:16px 8px;"><div class="ic">📈</div>2日以上記録するとグラフが表示されます</div>`
     }
   </div>`;
@@ -1255,11 +1306,23 @@ function buildWeightChartData(p) {
   return { labels, weightData, goalData };
 }
 
+const DAY_PIXEL_WIDTH = 32; // 1日あたりのX軸幅 (px)
+const CHART_MIN_WIDTH = 320;
+
+function setChartWrapperWidth(canvas, dayCount) {
+  const wrap = canvas.parentElement;
+  if (!wrap) return;
+  const w = Math.max(dayCount * DAY_PIXEL_WIDTH, CHART_MIN_WIDTH);
+  wrap.style.width = w + 'px';
+}
+
 function renderHomeWeightChart(p) {
   const canvas = $('homeWeightChart');
   if (!canvas) return;
   const cd = buildWeightChartData(p);
   if (!cd) return;
+
+  setChartWrapperWidth(canvas, cd.labels.length);
 
   if (homeWeightChartInstance) homeWeightChartInstance.destroy();
   homeWeightChartInstance = new Chart(canvas, {
@@ -1292,7 +1355,7 @@ function renderHomeWeightChart(p) {
         },
       ],
     },
-    options: chartCommonOptions({ kg: true }),
+    options: chartCommonOptions({ kg: true, autoSkip: false }),
   });
 }
 
@@ -1384,9 +1447,22 @@ function renderMealTabs() {
   });
 }
 
+function updateFoodDateLabel() {
+  const v = $('foodDate').value;
+  const lbl = $('foodDateLabel');
+  if (!lbl) return;
+  if (!v) { lbl.innerHTML = '—'; return; }
+  const d = new Date(v + 'T00:00:00');
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const dow = '日月火水木金土'[d.getDay()];
+  lbl.innerHTML = `${m}/${day}<span class="dow">(${dow})</span>`;
+}
+
 function renderFood() {
   const p = getProfile();
   if (!$('foodDate').value) $('foodDate').value = todayStr();
+  updateFoodDateLabel();
   const date = $('foodDate').value;
   const items = (p.foodLog && p.foodLog[date]) || [];
   const total = items.reduce((s, f) => s + Number(f.kcal), 0);
@@ -1794,6 +1870,7 @@ function renderCharts() {
   const cd = buildWeightChartData(p);
   if (weightChartInstance) weightChartInstance.destroy();
   if (cd) {
+    setChartWrapperWidth($('weightChart'), cd.labels.length);
     weightChartInstance = new Chart($('weightChart'), {
       type: 'line',
       data: {
@@ -1824,7 +1901,7 @@ function renderCharts() {
           },
         ],
       },
-      options: chartCommonOptions({ kg: true }),
+      options: chartCommonOptions({ kg: true, autoSkip: false }),
     });
   }
 
@@ -1880,7 +1957,15 @@ function chartCommonOptions(opt = {}) {
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } },
+      x: {
+        grid: { display: false },
+        ticks: {
+          font: { size: 10 },
+          autoSkip: opt.autoSkip !== false,
+          maxTicksLimit: opt.autoSkip !== false ? 8 : 0,
+          maxRotation: opt.maxRotation ?? 0,
+        },
+      },
       y: { grid: { color: '#eef1f6' }, ticks: { font: { size: 10 } } },
     },
   };
