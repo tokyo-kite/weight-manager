@@ -596,7 +596,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.0 (2026-05-07 hybrid food DB + AI)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.4 (2026-05-08 kcal history list)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -745,6 +745,16 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
       <div class="sub">プラス=摂取超過 / マイナス=赤字</div>
       <div class="chart-wrap"><canvas id="calorieChart"></canvas></div>
     </div>
+
+    <div class="card">
+      <h2>日別の数値履歴</h2>
+      <div class="sub">食事を記録した日ごとの摂取・消費・収支</div>
+      <ul class="list" id="kcalHistoryList" style="max-height: 480px; overflow-y: auto;"></ul>
+      <div id="kcalHistoryEmpty" class="empty" style="display:none;">
+        <div class="ic">📋</div>
+        食事の記録があるとここに表示されます
+      </div>
+    </div>
   </section>
 
   <!-- ===== Settings tab ===== -->
@@ -813,7 +823,6 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
         <div class="field"><label for="cfKcal">kcal</label><input type="text" id="cfKcal" inputmode="numeric" autocomplete="off"></div>
       </div>
       <button class="btn btn-secondary btn-block btn-sm" id="addCustomFoodBtn">+ 食品を追加</button>
-      <button class="btn btn-ghost btn-block btn-sm" id="restoreDefaultsBtn" style="margin-top: 8px; display:none;">非表示のデフォルト食品を復元 (<span id="hiddenCount">0</span>件)</button>
     </div>
 
     <div class="card">
@@ -834,7 +843,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v3.0 (2026-05-07 hybrid food DB + AI)
+      v3.4 (2026-05-08 kcal history list)
     </div>
   </section>
 
@@ -1581,9 +1590,14 @@ function weightOnOrBefore(p, dateStr) {
 /* ---------- Weight tab ---------- */
 function renderWeight() {
   const p = getProfile();
-  if (!$('weightDate').value) $('weightDate').value = todayStr();
+  // 日付が空 or 昨日以前なら今日にリセット
+  const today = todayStr();
+  if (!$('weightDate').value || $('weightDate').value < today) {
+    $('weightDate').value = today;
+  }
   const log = p.weightLog || {};
-  const dates = Object.keys(log).sort().reverse();
+  // 明示的に降順ソート (新しい日付を上に)
+  const dates = Object.keys(log).sort((a, b) => b.localeCompare(a));
   $('weightLogCount').textContent = dates.length > 0 ? `${dates.length} 件` : '';
 
   const ul = $('weightList');
@@ -1631,7 +1645,10 @@ function updateFoodDateLabel() {
 
 function renderFood() {
   const p = getProfile();
-  if (!$('foodDate').value) $('foodDate').value = todayStr();
+  const today = todayStr();
+  if (!$('foodDate').value || $('foodDate').value < today) {
+    $('foodDate').value = today;
+  }
   updateFoodDateLabel();
   const date = $('foodDate').value;
   const items = (p.foodLog && p.foodLog[date]) || [];
@@ -1682,63 +1699,37 @@ function renderFood() {
   renderCustomFoodChips();
 }
 
-function getVisibleQuickFoods(p) {
-  // p.customFoods (ソース=custom) + DEFAULT_FOODS (ソース=default、hiddenDefaultFoodsを除外)
-  const hidden = new Set(p.hiddenDefaultFoods || []);
-  const customs = (p.customFoods || []).map(f => ({ ...f, source: 'custom' }));
-  const customNames = new Set(customs.map(f => f.name));
-  const defaults = DEFAULT_FOODS
-    .filter(f => !hidden.has(f.name) && !customNames.has(f.name))
-    .map(f => ({ ...f, source: 'default' }));
-  return [...customs, ...defaults];
-}
-
 function renderCustomFoodChips() {
   const p = getProfile();
   if (!p) return;
   const chips = $('foodQuickChips');
   if (!chips) return;
   chips.innerHTML = '';
-  const list = getVisibleQuickFoods(p);
+  // クイック追加 chip は「自分で入力したもの (customFoods) のみ」表示
+  const list = (p.customFoods || []);
   if (list.length === 0) {
-    chips.innerHTML = '<span style="color:var(--text-sub); font-size:12px;">クイック追加なし。下の入力欄で追加できます。</span>';
+    chips.innerHTML = '<span style="color:var(--text-sub); font-size:12px; line-height:1.5;">食事記録時に「クイック追加にも保存する」をチェックすると、ここに表示されます</span>';
     return;
   }
-  list.forEach((f, i) => {
+  list.forEach(f => {
     const wrap = document.createElement('span');
     wrap.className = 'chip';
     wrap.innerHTML = `
       <button class="chip-main" type="button" data-act="add-quick" data-name="${escapeHtml(f.name)}" data-kcal="${f.kcal}">${escapeHtml(f.name)} <span class="kcal">${f.kcal}kcal</span></button>
-      <button class="chip-x" type="button" data-act="remove-quick" data-name="${escapeHtml(f.name)}" data-source="${f.source}" aria-label="削除">×</button>
+      <button class="chip-x" type="button" data-act="remove-quick" data-name="${escapeHtml(f.name)}" aria-label="削除">×</button>
     `;
     chips.appendChild(wrap);
   });
 }
 
-function removeQuickFood(name, source) {
+function removeQuickFood(name) {
   const p = getProfile();
   if (!p) return;
   if (!confirm(`「${name}」をクイック追加から外しますか?`)) return;
-  if (source === 'custom') {
-    p.customFoods = (p.customFoods || []).filter(f => f.name !== name);
-  } else {
-    if (!p.hiddenDefaultFoods) p.hiddenDefaultFoods = [];
-    if (!p.hiddenDefaultFoods.includes(name)) p.hiddenDefaultFoods.push(name);
-  }
+  p.customFoods = (p.customFoods || []).filter(f => f.name !== name);
   saveState();
   renderCustomFoodChips();
   renderSettings();
-}
-
-function restoreDefaultFoods() {
-  const p = getProfile();
-  if (!p) return;
-  if (!confirm('非表示にしたデフォルト食品を全て復元しますか?')) return;
-  p.hiddenDefaultFoods = [];
-  saveState();
-  renderCustomFoodChips();
-  renderSettings();
-  flash('デフォルト食品を復元しました');
 }
 
 /* ---------- Settings tab ---------- */
@@ -1795,18 +1786,6 @@ function renderSettings() {
       `;
       cf.appendChild(li);
     });
-  }
-
-  // 非表示デフォルトの復元ボタン
-  const hiddenCount = (p.hiddenDefaultFoods || []).length;
-  const restoreBtn = $('restoreDefaultsBtn');
-  if (restoreBtn) {
-    if (hiddenCount > 0) {
-      restoreBtn.style.display = '';
-      $('hiddenCount').textContent = hiddenCount;
-    } else {
-      restoreBtn.style.display = 'none';
-    }
   }
 
   renderBackups();
@@ -2191,6 +2170,46 @@ function renderCharts() {
     },
     options: chartCommonOptions({ kcal: true }),
   });
+
+  /* --- 日別カロリー収支履歴(リスト) --- */
+  renderKcalHistory(p);
+}
+
+function renderKcalHistory(p) {
+  const ul = $('kcalHistoryList');
+  const empty = $('kcalHistoryEmpty');
+  if (!ul || !empty) return;
+  const log = p.foodLog || {};
+  const dates = Object.keys(log).filter(d => log[d] && log[d].length > 0).sort((a, b) => b.localeCompare(a));
+  if (dates.length === 0) {
+    ul.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  let html = '';
+  for (const d of dates) {
+    const items = log[d];
+    const intake = items.reduce((s, f) => s + Number(f.kcal || 0), 0);
+    const w = weightOnOrBefore(p, d) ?? p.startWeight;
+    const { tdee } = calcTDEE(p, w);
+    const balance = intake - tdee; // 負: 赤字 / 正: 黒字
+    const isDeficit = balance < 0;
+    const absBal = Math.round(Math.abs(balance));
+    const color = isDeficit ? 'var(--success)' : 'var(--danger)';
+    html += `
+      <li class="list-item">
+        <div class="left">
+          <div class="name">${fmtDate(d)}</div>
+          <div class="meta">摂取 ${Math.round(intake)} / 消費 ${Math.round(tdee)} kcal</div>
+        </div>
+        <div class="val" style="color:${color}; font-variant-numeric: tabular-nums; font-weight:700;">
+          ${isDeficit ? '−' : '+'}${absBal}<span style="font-size:11px; color:var(--text-sub); font-weight:500; margin-left:2px;">kcal</span>
+        </div>
+      </li>
+    `;
+  }
+  ul.innerHTML = html;
 }
 
 function chartCommonOptions(opt = {}) {
@@ -2385,10 +2404,16 @@ function bindEvents() {
     if (b) deleteFoodEntry(b.dataset.id);
   });
 
-  // Food autocomplete
+  // Food autocomplete + 自動カロリー入力 (完全一致時)
   $('foodName').addEventListener('input', () => {
     aiEstimateUsed = false;
     $('aiResult').classList.remove('show');
+    const name = $('foodName').value.trim();
+    if (name) {
+      const all = getAllSearchableFoods(getProfile());
+      const exact = all.find(f => f.name === name);
+      if (exact) $('foodKcal').value = exact.kcal;
+    }
     renderAutocomplete();
   });
   $('foodName').addEventListener('focus', renderAutocomplete);
@@ -2419,7 +2444,7 @@ function bindEvents() {
       return;
     }
     const remove = e.target.closest('[data-act="remove-quick"]');
-    if (remove) removeQuickFood(remove.dataset.name, remove.dataset.source);
+    if (remove) removeQuickFood(remove.dataset.name);
   });
 
   // settings
@@ -2462,7 +2487,6 @@ function bindEvents() {
     const b = e.target.closest('[data-act="del-cf"]');
     if (b) deleteCustomFood(parseInt(b.dataset.i, 10));
   });
-  $('restoreDefaultsBtn').addEventListener('click', restoreDefaultFoods);
 
   // backups
   $('manualBackupBtn').addEventListener('click', manualBackup);
@@ -2493,6 +2517,40 @@ function bindEvents() {
   $('weightDate').value = todayStr();
   $('foodDate').value = todayStr();
 }
+
+/* ============================================================
+   Foreground refresh — iOS PWA はバックグラウンド復帰時に
+   JS を再実行しないため、日付が古いまま固定される問題に対処。
+   visibility/pageshow/focus で today を再計算 → 再描画。
+   ============================================================ */
+let lastSeenToday = todayStr();
+
+function refreshTodayAndRender() {
+  if (!state || !state.currentProfileId) return;
+  const today = todayStr();
+  lastSeenToday = today;
+  ['weightDate', 'foodDate'].forEach(id => {
+    const el = $(id);
+    if (el && el.value && el.value < today) el.value = today;
+  });
+  render();
+  // グラフタブが開いていればチャートも再描画
+  if ($('tabChart') && $('tabChart').classList.contains('active')) {
+    requestAnimationFrame(() => renderCharts());
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshTodayAndRender();
+});
+window.addEventListener('pageshow', refreshTodayAndRender);
+window.addEventListener('focus', refreshTodayAndRender);
+
+// 1分ごとに日付変化を検知 → 自動でリセット
+// (アプリを起動したまま日付をまたぐケースに対応)
+setInterval(() => {
+  if (todayStr() !== lastSeenToday) refreshTodayAndRender();
+}, 60 * 1000);
 
 /* ============================================================
    iOS PWA Input Focus Safety Net
