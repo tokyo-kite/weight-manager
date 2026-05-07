@@ -310,8 +310,8 @@ main {
   height: 240px;
 }
 
-/* ==== Date input quirk fix on iOS ==== */
-input[type="date"], input[type="number"] { font-size: 16px; }
+/* ==== Input quirk fix on iOS ==== */
+input, select, textarea { font-size: 16px; touch-action: manipulation; }
 
 </style>
 </head>
@@ -351,7 +351,7 @@ input[type="date"], input[type="number"] { font-size: 16px; }
         </div>
         <div class="field">
           <label for="weightKg">体重 (kg)</label>
-          <input type="number" id="weightKg" step="0.1" min="20" max="300" placeholder="例) 65.4" inputmode="decimal">
+          <input type="text" id="weightKg" min="20" max="300" placeholder="例) 65.4" inputmode="decimal">
         </div>
       </div>
       <button class="btn btn-primary btn-block" id="saveWeightBtn">保存する</button>
@@ -389,7 +389,7 @@ input[type="date"], input[type="number"] { font-size: 16px; }
         </div>
         <div class="field">
           <label for="foodKcal">カロリー (kcal)</label>
-          <input type="number" id="foodKcal" min="0" max="5000" inputmode="numeric" placeholder="例) 234">
+          <input type="text" id="foodKcal" inputmode="numeric" placeholder="例) 234">
         </div>
       </div>
       <button class="btn btn-primary btn-block" id="saveFoodBtn">追加する</button>
@@ -437,17 +437,17 @@ input[type="date"], input[type="number"] { font-size: 16px; }
         </div>
         <div class="field">
           <label for="setBirthYear">生年</label>
-          <input type="number" id="setBirthYear" min="1900" max="2099" inputmode="numeric" placeholder="例) 1990">
+          <input type="text" id="setBirthYear" inputmode="numeric" placeholder="例) 1990">
         </div>
       </div>
       <div class="field-row">
         <div class="field">
           <label for="setHeight">身長 (cm)</label>
-          <input type="number" id="setHeight" min="100" max="250" step="0.1" inputmode="decimal">
+          <input type="text" id="setHeight" inputmode="decimal">
         </div>
         <div class="field">
           <label for="setStartWeight">開始体重 (kg)</label>
-          <input type="number" id="setStartWeight" min="20" max="300" step="0.1" inputmode="decimal">
+          <input type="text" id="setStartWeight" inputmode="decimal">
         </div>
       </div>
       <div class="field">
@@ -467,7 +467,7 @@ input[type="date"], input[type="number"] { font-size: 16px; }
       <div class="field-row">
         <div class="field">
           <label for="setGoalWeight">目標体重 (kg)</label>
-          <input type="number" id="setGoalWeight" min="20" max="300" step="0.1" inputmode="decimal">
+          <input type="text" id="setGoalWeight" inputmode="decimal">
         </div>
         <div class="field">
           <label for="setGoalDate">目標日</label>
@@ -485,13 +485,21 @@ input[type="date"], input[type="number"] { font-size: 16px; }
       <ul class="list" id="customFoodList"></ul>
       <div class="field-row" style="margin-top: 10px;">
         <div class="field"><label for="cfName">食品名</label><input type="text" id="cfName" placeholder="例) ご飯一杯"></div>
-        <div class="field"><label for="cfKcal">kcal</label><input type="number" id="cfKcal" inputmode="numeric"></div>
+        <div class="field"><label for="cfKcal">kcal</label><input type="text" id="cfKcal" inputmode="numeric"></div>
       </div>
       <button class="btn btn-secondary btn-block btn-sm" id="addCustomFoodBtn">+ 食品を追加</button>
     </div>
 
     <div class="card">
-      <h2>データ管理</h2>
+      <h2>自動バックアップ</h2>
+      <div class="sub">毎日この端末内に自動保存。最大14日分を保持します。</div>
+      <ul class="list" id="backupList"></ul>
+      <button class="btn btn-secondary btn-block btn-sm" id="manualBackupBtn" style="margin-top: 10px;">📦 今すぐバックアップ</button>
+    </div>
+
+    <div class="card">
+      <h2>データ管理 (ファイル経由)</h2>
+      <div class="sub">機種変更や端末故障に備えてJSONファイルでも保存できます</div>
       <button class="btn btn-ghost btn-block btn-sm" id="exportBtn" style="margin-bottom: 8px;">バックアップを書き出し (JSON)</button>
       <button class="btn btn-ghost btn-block btn-sm" id="importBtn">バックアップから読み込み</button>
       <input type="file" id="importFile" accept="application/json" style="display: none;">
@@ -544,12 +552,12 @@ input[type="date"], input[type="number"] { font-size: 16px; }
       </div>
       <div class="field">
         <label for="suBirthYear">生年</label>
-        <input type="number" id="suBirthYear" min="1900" max="2099" inputmode="numeric" placeholder="1990">
+        <input type="text" id="suBirthYear" inputmode="numeric" placeholder="1990">
       </div>
     </div>
     <div class="field-row">
-      <div class="field"><label for="suHeight">身長 (cm)</label><input type="number" id="suHeight" min="100" max="250" step="0.1" inputmode="decimal"></div>
-      <div class="field"><label for="suStartWeight">現在体重 (kg)</label><input type="number" id="suStartWeight" min="20" max="300" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label for="suHeight">身長 (cm)</label><input type="text" id="suHeight" inputmode="decimal"></div>
+      <div class="field"><label for="suStartWeight">現在体重 (kg)</label><input type="text" id="suStartWeight" inputmode="decimal"></div>
     </div>
     <div class="field">
       <label for="suActivity">活動レベル</label>
@@ -562,7 +570,7 @@ input[type="date"], input[type="number"] { font-size: 16px; }
       </select>
     </div>
     <div class="field-row">
-      <div class="field"><label for="suGoalWeight">目標体重 (kg)</label><input type="number" id="suGoalWeight" min="20" max="300" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label for="suGoalWeight">目標体重 (kg)</label><input type="text" id="suGoalWeight" inputmode="decimal"></div>
       <div class="field"><label for="suGoalDate">目標日</label><input type="date" id="suGoalDate"></div>
     </div>
     <div class="modal-actions">
@@ -579,6 +587,9 @@ input[type="date"], input[type="number"] { font-size: 16px; }
    ============================================================ */
 
 const STORAGE_KEY = 'weight-manager-v1';
+const BACKUP_PREFIX = 'weight-manager-backup-';
+const BACKUP_RETENTION_DAYS = 14;
+const PRE_RESTORE_KEY = BACKUP_PREFIX + 'pre-restore';
 
 /* ---------- Default quick-add food DB (kcal: 平均的な目安) ---------- */
 const DEFAULT_FOODS = [
@@ -630,6 +641,120 @@ function loadState() {
 }
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ============================================================
+   BACKUP / RESTORE
+   ============================================================ */
+function backupKeyForDate(d) { return BACKUP_PREFIX + d; }
+
+function createDailyBackup() {
+  // プロフィールがない時はスキップ
+  if (!state.profiles || Object.keys(state.profiles).length === 0) return;
+  const today = todayStr();
+  const key = backupKeyForDate(today);
+  if (localStorage.getItem(key)) return; // 今日分は既に存在
+  try {
+    localStorage.setItem(key, JSON.stringify(state));
+    pruneOldBackups();
+  } catch (e) {
+    console.warn('Daily backup failed:', e);
+  }
+}
+
+function manualBackup() {
+  if (!state.profiles || Object.keys(state.profiles).length === 0) {
+    alert('保存するデータがありません');
+    return;
+  }
+  const today = todayStr();
+  const key = backupKeyForDate(today);
+  try {
+    localStorage.setItem(key, JSON.stringify(state));
+    pruneOldBackups();
+    flash(`${today} のバックアップを作成しました`);
+    renderBackups();
+  } catch (e) {
+    alert('バックアップに失敗しました: ' + e.message);
+  }
+}
+
+function pruneOldBackups() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - BACKUP_RETENTION_DAYS);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const toDelete = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(BACKUP_PREFIX)) continue;
+    if (key === PRE_RESTORE_KEY) continue; // pre-restore は別管理
+    const date = key.substring(BACKUP_PREFIX.length);
+    if (date.length === 10 && date < cutoffStr) toDelete.push(key);
+  }
+  toDelete.forEach(k => localStorage.removeItem(k));
+}
+
+function listBackups() {
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(BACKUP_PREFIX)) continue;
+    const suffix = key.substring(BACKUP_PREFIX.length);
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem(key)); } catch (e) { continue; }
+    if (!raw) continue;
+    if (suffix === 'pre-restore') {
+      out.push({ date: 'pre-restore', label: '直前の復元前データ', data: raw, isSpecial: true });
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(suffix)) {
+      out.push({ date: suffix, label: fmtDate(suffix), data: raw, isSpecial: false });
+    }
+  }
+  // pre-restore は先頭、その他は日付降順
+  return out.sort((a, b) => {
+    if (a.isSpecial) return -1;
+    if (b.isSpecial) return 1;
+    return b.date.localeCompare(a.date);
+  });
+}
+
+function summarizeBackup(data) {
+  if (!data || !data.profiles) return '無効なデータ';
+  const profs = Object.values(data.profiles);
+  const profCount = profs.length;
+  let weightLogCount = 0;
+  let foodLogDays = 0;
+  profs.forEach(p => {
+    weightLogCount += Object.keys(p.weightLog || {}).length;
+    foodLogDays += Object.keys(p.foodLog || {}).length;
+  });
+  return `プロフィール ${profCount} / 体重 ${weightLogCount}件 / 食事 ${foodLogDays}日分`;
+}
+
+function restoreBackup(suffix) {
+  const key = BACKUP_PREFIX + suffix;
+  const raw = localStorage.getItem(key);
+  if (!raw) { alert('バックアップが見つかりません'); return; }
+  const label = suffix === 'pre-restore' ? '直前の復元前データ' : suffix;
+  if (!confirm(`【${label}】 のバックアップで現在のデータを上書きします。\n\n復元前の現在のデータは「直前の復元前データ」として自動保存されるので、必要なら戻せます。\n\n復元しますか?`)) return;
+  try {
+    // 現在の状態を pre-restore として保存
+    localStorage.setItem(PRE_RESTORE_KEY, JSON.stringify(state));
+    // 復元
+    state = JSON.parse(raw);
+    saveState();
+    render();
+    flash(`${label} に復元しました`);
+  } catch (e) {
+    alert('復元に失敗しました: ' + e.message);
+  }
+}
+
+function deleteBackup(suffix) {
+  const key = BACKUP_PREFIX + suffix;
+  const label = suffix === 'pre-restore' ? '直前の復元前データ' : suffix;
+  if (!confirm(`バックアップ【${label}】を削除しますか?`)) return;
+  localStorage.removeItem(key);
+  renderBackups();
 }
 
 /* ============================================================
@@ -1137,6 +1262,38 @@ function renderSettings() {
     `;
     cf.appendChild(li);
   });
+
+  renderBackups();
+}
+
+function renderBackups() {
+  const ul = $('backupList');
+  if (!ul) return;
+  const backups = listBackups();
+  ul.innerHTML = '';
+  if (backups.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.style.cssText = 'padding:16px 8px;list-style:none;';
+    li.innerHTML = '<div class="ic">💾</div>まだバックアップがありません<br><span style="font-size:11px;">アプリ起動時に自動で作成されます</span>';
+    ul.appendChild(li);
+    return;
+  }
+  backups.forEach(b => {
+    const li = document.createElement('li');
+    li.className = 'list-item';
+    li.innerHTML = `
+      <div class="left">
+        <div class="name">${escapeHtml(b.label)}${b.isSpecial ? ' <span style="color:var(--warn);font-size:10px;">⚠️</span>' : ''}</div>
+        <div class="meta">${summarizeBackup(b.data)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-sm btn-secondary" data-act="restore-backup" data-suffix="${escapeHtml(b.date)}">復元</button>
+        <button class="icon-btn" data-act="del-backup" data-suffix="${escapeHtml(b.date)}" title="削除">🗑️</button>
+      </div>
+    `;
+    ul.appendChild(li);
+  });
 }
 
 /* ============================================================
@@ -1588,6 +1745,15 @@ function bindEvents() {
     if (b) deleteCustomFood(parseInt(b.dataset.i, 10));
   });
 
+  // backups
+  $('manualBackupBtn').addEventListener('click', manualBackup);
+  $('backupList').addEventListener('click', (e) => {
+    const restore = e.target.closest('[data-act="restore-backup"]');
+    if (restore) { restoreBackup(restore.dataset.suffix); return; }
+    const del = e.target.closest('[data-act="del-backup"]');
+    if (del) deleteBackup(del.dataset.suffix);
+  });
+
   // data management
   $('exportBtn').addEventListener('click', exportData);
   $('importBtn').addEventListener('click', () => $('importFile').click());
@@ -1610,9 +1776,29 @@ function bindEvents() {
 }
 
 /* ============================================================
+   iOS PWA Input Focus Safety Net
+   PWA スタンドアロンモードで input が click イベントだけだと
+   キーボードを開かないバグへの対処。touchend で明示的に focus。
+   ============================================================ */
+(function () {
+  const FOCUSABLE = 'input, textarea, select';
+  document.addEventListener('touchend', (e) => {
+    const t = e.target;
+    if (t && t.matches && t.matches(FOCUSABLE)) {
+      // タップ位置がそのままフォーカス対象なら、明示的に focus を呼ぶ
+      // これにより iOS WebKit standalone のフォーカス取りこぼしバグを回避
+      setTimeout(() => {
+        if (document.activeElement !== t) t.focus();
+      }, 0);
+    }
+  }, { passive: true });
+})();
+
+/* ============================================================
    INIT
    ============================================================ */
 loadState();
+createDailyBackup(); // 起動時に今日のバックアップがなければ作成
 bindEvents();
 render();
 
