@@ -596,7 +596,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.4 (2026-05-08 kcal history list)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.6 (2026-05-08 deficit-focused y-axis)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -843,7 +843,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v3.4 (2026-05-08 kcal history list)
+      v3.6 (2026-05-08 deficit-focused y-axis)
     </div>
   </section>
 
@@ -1076,7 +1076,7 @@ function manualBackup() {
 function pruneOldBackups() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - BACKUP_RETENTION_DAYS);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = fmtLocalDate(cutoff);
   const toDelete = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -1155,7 +1155,15 @@ function deleteBackup(suffix) {
    HELPERS
    ============================================================ */
 const $ = (id) => document.getElementById(id);
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// ローカルタイムゾーン (JST想定) で YYYY-MM-DD を返す。
+// toISOString() はUTCになるので、JSTで午前9時より前が前日扱いになる問題を回避。
+const fmtLocalDate = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+const todayStr = () => fmtLocalDate(new Date());
 const fmtDate = (s) => {
   if (!s) return '';
   const d = new Date(s + 'T00:00:00');
@@ -1280,7 +1288,7 @@ function createProfile(data) {
 function addMonths(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().slice(0, 10);
+  return fmtLocalDate(d);
 }
 
 function deleteProfile(id) {
@@ -1451,7 +1459,7 @@ function dateRange(startStr, endStr) {
   const end = new Date(endStr + 'T00:00:00');
   if (isNaN(cur) || isNaN(end) || cur > end) return out;
   while (cur <= end) {
-    out.push(cur.toISOString().slice(0, 10));
+    out.push(fmtLocalDate(cur));
     cur.setDate(cur.getDate() + 1);
   }
   return out;
@@ -1544,7 +1552,7 @@ function predictGoal(p) {
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    days.push(fmtLocalDate(d));
   }
   let totalDef = 0; let count = 0;
   for (const d of days) {
@@ -1570,7 +1578,7 @@ function predictGoal(p) {
   const daysToGoal = (remainKg * 7200) / avgDeficit;
   const predDate = new Date();
   predDate.setDate(predDate.getDate() + Math.ceil(daysToGoal));
-  const predStr = predDate.toISOString().slice(0, 10);
+  const predStr = fmtLocalDate(predDate);
   const diff = daysBetween(p.goalDate, predStr); // 正:目標より遅い
   return {
     avgDeficit,
@@ -2144,7 +2152,7 @@ function renderCharts() {
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    days.push(fmtLocalDate(d));
   }
   const balances = days.map(d => {
     const kcal = dayCalories(p, d);
@@ -2158,6 +2166,7 @@ function renderCharts() {
   const balancesForChart = balances.map(b => b === null ? 0 : b);
 
   if (calorieChartInstance) calorieChartInstance.destroy();
+  const calorieBaseOpts = chartCommonOptions({ kcal: true });
   calorieChartInstance = new Chart($('calorieChart'), {
     type: 'bar',
     data: {
@@ -2168,7 +2177,35 @@ function renderCharts() {
         backgroundColor: colors,
       }],
     },
-    options: chartCommonOptions({ kcal: true }),
+    options: {
+      ...calorieBaseOpts,
+      scales: {
+        ...calorieBaseOpts.scales,
+        y: {
+          // 赤字 (マイナス) を主体に表示するための固定範囲
+          // -1000 を視覚的な目標ラインとして強調
+          suggestedMin: -2000,
+          suggestedMax: 1000,
+          ticks: {
+            font: { size: 10 },
+            stepSize: 500,
+            callback: (v) => v > 0 ? `+${v}` : `${v}`,
+          },
+          grid: {
+            color: (ctx) => {
+              if (ctx.tick.value === -1000) return '#2aa86b'; // 目標ライン (緑)
+              if (ctx.tick.value === 0) return '#5f6b80';      // ゼロライン (濃いグレー)
+              return '#eef1f6';                                // 通常 (薄)
+            },
+            lineWidth: (ctx) => {
+              if (ctx.tick.value === -1000) return 2;
+              if (ctx.tick.value === 0) return 1.5;
+              return 1;
+            },
+          },
+        },
+      },
+    },
   });
 
   /* --- 日別カロリー収支履歴(リスト) --- */
