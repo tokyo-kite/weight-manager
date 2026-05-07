@@ -344,6 +344,32 @@ main {
 }
 .chip-x:active { background: var(--danger-soft); color: var(--danger); }
 
+/* Date + meal row (compact, no labels) */
+.food-meta-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  align-items: stretch;
+}
+.food-meta-row > input[type="date"] {
+  flex: 0 0 auto;
+  width: 132px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+  -webkit-appearance: none;
+  appearance: none;
+  font-weight: 600;
+}
+.food-meta-row > .meal-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Meal segmented control */
 .meal-tabs {
   display: flex;
@@ -461,7 +487,7 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v1.8 (2026-05-07 home default)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v1.9 (2026-05-07 compact food row)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -547,12 +573,8 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
   <section id="tabFood" class="tab-page">
     <div class="card">
       <h2>食事を記録</h2>
-      <div class="field">
-        <label for="foodDate">日付</label>
-        <input type="date" id="foodDate">
-      </div>
-      <div class="field">
-        <label>食事の時間帯</label>
+      <div class="food-meta-row">
+        <input type="date" id="foodDate" aria-label="日付">
         <div class="meal-tabs" id="mealTabs">
           <button type="button" class="meal-tab" data-meal="breakfast"><span class="ic">🌅</span>朝</button>
           <button type="button" class="meal-tab active" data-meal="lunch"><span class="ic">☀️</span>昼</button>
@@ -694,7 +716,7 @@ input, select, textarea { font-size: 16px; touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v1.8 (2026-05-07 home default)
+      v1.9 (2026-05-07 compact food row)
     </div>
   </section>
 
