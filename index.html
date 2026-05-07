@@ -596,7 +596,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.6 (2026-05-08 deficit-focused y-axis)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.7 (2026-05-08 compact prediction)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -843,7 +843,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v3.6 (2026-05-08 deficit-focused y-axis)
+      v3.7 (2026-05-08 compact prediction)
     </div>
   </section>
 
@@ -1389,19 +1389,34 @@ function renderHome() {
     html += `<div class="banner good">目標体重に到達済み or 増量目標です</div>`;
   }
 
-  // 達成予測
+  // 達成予測 (コンパクト・横並び)
   if (predicted) {
     const onTrack = predicted.onTrack;
-    html += `<div class="card">
-      <div class="section-head"><h3>このペースでの達成予測</h3></div>`;
+    const dateColor = onTrack ? 'var(--success)' : 'var(--warn)';
+    let diffText = '';
+    if (predicted.predictedDate) {
+      diffText = predicted.diffDays >= 0
+        ? `+${predicted.diffDays}日`
+        : `${predicted.diffDays}日`;
+    }
+    html += `<div class="card" style="padding:10px 14px;">
+      <h3 style="margin:0 0 6px; font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.04em;">このペースでの達成予測</h3>`;
     if (predicted.kgPerWeek === 0) {
-      html += `<div style="font-size:13px;color:var(--text-sub);">記録された赤字がまだ十分でないため予測できません。数日記録すると精度が上がります。</div>`;
+      html += `<div style="font-size:12px;color:var(--text-sub);">記録が不十分。数日記録すると予測精度が上がります。</div>`;
     } else {
-      html += `<div style="font-size:14px; line-height:1.7;">
-        平均赤字: <b>${Math.round(predicted.avgDeficit)} kcal/日</b><br>
-        減量ペース: <b>${round1(predicted.kgPerWeek)} kg/週</b><br>
-        達成予測: <b style="color:${onTrack ? 'var(--success)' : 'var(--warn)'}">${predicted.predictedDate || 'ー'}</b>
-        ${predicted.predictedDate ? `(目標日と${predicted.diffDays >= 0 ? predicted.diffDays + '日遅い' : Math.abs(predicted.diffDays) + '日早い'})` : ''}
+      html += `<div style="display:flex; gap:8px; justify-content:space-between; align-items:flex-end;">
+        <div style="line-height:1.2;">
+          <div style="font-size:10px; color:var(--text-sub);">平均赤字</div>
+          <div style="font-size:15px; font-weight:700;">${Math.round(predicted.avgDeficit)}<span style="font-size:10px; color:var(--text-sub); font-weight:500; margin-left:2px;">kcal/日</span></div>
+        </div>
+        <div style="line-height:1.2;">
+          <div style="font-size:10px; color:var(--text-sub);">ペース</div>
+          <div style="font-size:15px; font-weight:700;">${round1(predicted.kgPerWeek)}<span style="font-size:10px; color:var(--text-sub); font-weight:500; margin-left:2px;">kg/週</span></div>
+        </div>
+        <div style="line-height:1.2; text-align:right;">
+          <div style="font-size:10px; color:var(--text-sub);">達成予測 <span style="color:${dateColor}; font-weight:700;">${diffText}</span></div>
+          <div style="font-size:15px; font-weight:700; color:${dateColor};">${predicted.predictedDate || 'ー'}</div>
+        </div>
       </div>`;
     }
     html += `</div>`;
