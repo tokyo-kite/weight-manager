@@ -441,6 +441,41 @@ main {
 .meal-header .sub { color: var(--text-sub); font-size: 11px; }
 .meal-empty { color: var(--text-sub); font-size: 12px; padding: 6px 0; font-style: italic; }
 
+/* Quick chips toggle button */
+.quick-toggle {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.quick-toggle .chev {
+  display: inline-block;
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+.quick-toggle.expanded .chev { transform: rotate(180deg); }
+.quick-toggle .count { color: var(--primary); font-weight: 700; }
+
+/* Food history (past days) */
+.history-item { cursor: pointer; }
+.history-item:active { background: var(--primary-soft); }
+.history-item .meta-meals {
+  display: inline-flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+
 /* Autocomplete dropdown */
 .autocomplete-wrap { position: relative; }
 .autocomplete-list {
@@ -596,7 +631,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.7 (2026-05-08 compact prediction)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.8 (2026-05-08 collapsible chips + food history)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -693,10 +728,11 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
           <button type="button" class="meal-tab" data-meal="dinner"><span class="ic">🌙</span>夜</button>
         </div>
       </div>
-      <div class="field">
-        <label>クイック追加 (タップで登録)</label>
-        <div class="chips" id="foodQuickChips"></div>
-      </div>
+      <button type="button" class="quick-toggle" id="toggleQuickChips">
+        <span>クイック追加 <span class="count" id="quickChipsCount">(0件)</span></span>
+        <span class="chev">▼</span>
+      </button>
+      <div class="chips" id="foodQuickChips" style="display:none; margin-bottom:14px;"></div>
       <div class="field-row">
         <div class="field autocomplete-wrap">
           <label for="foodName">食品名</label>
@@ -728,6 +764,19 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
       <div id="foodEmpty" class="empty">
         <div class="ic">🍱</div>
         この日はまだ記録がありません
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <h3>他の日の記録</h3>
+        <span style="font-size:11px; color:var(--text-sub);" id="foodHistoryCount"></span>
+      </div>
+      <div style="font-size:11px; color:var(--text-sub); margin-bottom:8px;">タップでその日の詳細にジャンプ</div>
+      <ul class="list" id="foodHistoryList" style="max-height:480px; overflow-y:auto;"></ul>
+      <div id="foodHistoryEmpty" class="empty" style="display:none;">
+        <div class="ic">📅</div>
+        過去の記録はまだありません
       </div>
     </div>
   </section>
@@ -843,7 +892,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v3.7 (2026-05-08 compact prediction)
+      v3.8 (2026-05-08 collapsible chips + food history)
     </div>
   </section>
 
@@ -1720,16 +1769,19 @@ function renderFood() {
   }
 
   renderCustomFoodChips();
+  renderFoodHistory();
 }
 
 function renderCustomFoodChips() {
   const p = getProfile();
   if (!p) return;
   const chips = $('foodQuickChips');
+  const count = $('quickChipsCount');
   if (!chips) return;
-  chips.innerHTML = '';
-  // クイック追加 chip は「自分で入力したもの (customFoods) のみ」表示
   const list = (p.customFoods || []);
+  if (count) count.textContent = `(${list.length}件)`;
+
+  chips.innerHTML = '';
   if (list.length === 0) {
     chips.innerHTML = '<span style="color:var(--text-sub); font-size:12px; line-height:1.5;">食事記録時に「クイック追加にも保存する」をチェックすると、ここに表示されます</span>';
     return;
@@ -1743,6 +1795,61 @@ function renderCustomFoodChips() {
     `;
     chips.appendChild(wrap);
   });
+}
+
+const QUICK_CHIPS_PREF_KEY = 'weight-manager-quick-chips-expanded';
+function applyQuickChipsExpansion() {
+  const btn = $('toggleQuickChips');
+  const chips = $('foodQuickChips');
+  if (!btn || !chips) return;
+  const expanded = localStorage.getItem(QUICK_CHIPS_PREF_KEY) === '1';
+  btn.classList.toggle('expanded', expanded);
+  chips.style.display = expanded ? 'flex' : 'none';
+}
+function toggleQuickChips() {
+  const expanded = localStorage.getItem(QUICK_CHIPS_PREF_KEY) !== '1';
+  localStorage.setItem(QUICK_CHIPS_PREF_KEY, expanded ? '1' : '0');
+  applyQuickChipsExpansion();
+}
+
+function renderFoodHistory() {
+  const p = getProfile();
+  const ul = $('foodHistoryList');
+  const empty = $('foodHistoryEmpty');
+  const countEl = $('foodHistoryCount');
+  if (!ul || !empty) return;
+  const log = p.foodLog || {};
+  const today = todayStr();
+  const dates = Object.keys(log)
+    .filter(d => d !== today && log[d] && log[d].length > 0)
+    .sort((a, b) => b.localeCompare(a));
+  if (countEl) countEl.textContent = dates.length > 0 ? `${dates.length}日分` : '';
+  if (dates.length === 0) {
+    ul.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  let html = '';
+  for (const d of dates) {
+    const items = log[d];
+    const total = items.reduce((s, f) => s + Number(f.kcal || 0), 0);
+    const breakdown = MEAL_DEFS.map(m => {
+      const sub = items.filter(it => (it.meal || 'lunch') === m.key)
+        .reduce((s, f) => s + Number(f.kcal || 0), 0);
+      return sub > 0 ? `<span>${m.icon}${Math.round(sub)}</span>` : '';
+    }).filter(s => s).join('');
+    html += `
+      <li class="list-item history-item" data-act="jump-to-date" data-date="${d}">
+        <div class="left">
+          <div class="name">${fmtDate(d)}</div>
+          <div class="meta-meals">${breakdown}</div>
+        </div>
+        <div class="val">${Math.round(total)} kcal</div>
+      </li>
+    `;
+  }
+  ul.innerHTML = html;
 }
 
 function removeQuickFood(name) {
@@ -2499,6 +2606,20 @@ function bindEvents() {
     if (remove) removeQuickFood(remove.dataset.name);
   });
 
+  // Quick chips toggle
+  $('toggleQuickChips').addEventListener('click', toggleQuickChips);
+
+  // Food history click → 日付ジャンプ
+  $('foodHistoryList').addEventListener('click', (e) => {
+    const item = e.target.closest('[data-act="jump-to-date"]');
+    if (!item) return;
+    $('foodDate').value = item.dataset.date;
+    renderFood();
+    // 上にスクロールして「選択日の食事」セクションを見せる
+    const target = $('foodList');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   // settings
   $('saveSettingsBtn').addEventListener('click', saveSettingsFromForm);
   ['setGoalWeight', 'setGoalDate', 'setActivity', 'setHeight', 'setBirthYear', 'setGender', 'setStartWeight'].forEach(id => {
@@ -2629,6 +2750,7 @@ setInterval(() => {
 loadState();
 createDailyBackup(); // 起動時に今日のバックアップがなければ作成
 bindEvents();
+applyQuickChipsExpansion(); // クイック追加の開閉状態を復元
 render();
 
 </script>
