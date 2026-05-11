@@ -631,7 +631,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
     <h1>WEIGHT MANAGER へようこそ</h1>
     <p>目標体重と日々の記録から、必要なカロリー赤字を自動で計算します。<br>データはこの端末のブラウザだけに保存されます。</p>
     <button class="btn btn-primary btn-block" id="welcomeStartBtn" style="max-width: 320px;">はじめる</button>
-    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.8 (2026-05-08 collapsible chips + food history)</div>
+    <div style="margin-top:24px; color:var(--text-sub); font-size:10px;">v3.9 (2026-05-10 past date navigation fix)</div>
   </section>
 
   <!-- ===== Setup (first profile / new profile) — inline section, NOT modal ===== -->
@@ -892,7 +892,7 @@ button, a, label, .chip, .stat { touch-action: manipulation; }
 
     <div style="text-align: center; color: var(--text-sub); font-size: 11px; padding: 8px 0 4px;">
       データは端末内 (LocalStorage) のみに保存されます<br>
-      v3.8 (2026-05-08 collapsible chips + food history)
+      v3.9 (2026-05-10 past date navigation fix)
     </div>
   </section>
 
@@ -1662,11 +1662,8 @@ function weightOnOrBefore(p, dateStr) {
 /* ---------- Weight tab ---------- */
 function renderWeight() {
   const p = getProfile();
-  // 日付が空 or 昨日以前なら今日にリセット
-  const today = todayStr();
-  if (!$('weightDate').value || $('weightDate').value < today) {
-    $('weightDate').value = today;
-  }
+  // 日付が空のときだけ今日をセット (ユーザーが過去日付を選んでいる場合は保持)
+  if (!$('weightDate').value) $('weightDate').value = todayStr();
   const log = p.weightLog || {};
   // 明示的に降順ソート (新しい日付を上に)
   const dates = Object.keys(log).sort((a, b) => b.localeCompare(a));
@@ -1717,10 +1714,8 @@ function updateFoodDateLabel() {
 
 function renderFood() {
   const p = getProfile();
-  const today = todayStr();
-  if (!$('foodDate').value || $('foodDate').value < today) {
-    $('foodDate').value = today;
-  }
+  // 日付が空のときだけ今日をセット (ユーザーが過去日付を選んでいる場合は保持)
+  if (!$('foodDate').value) $('foodDate').value = todayStr();
   updateFoodDateLabel();
   const date = $('foodDate').value;
   const items = (p.foodLog && p.foodLog[date]) || [];
@@ -2701,11 +2696,14 @@ let lastSeenToday = todayStr();
 function refreshTodayAndRender() {
   if (!state || !state.currentProfileId) return;
   const today = todayStr();
-  lastSeenToday = today;
+  const oldToday = lastSeenToday;
+  // 「直前まで今日として表示していた値」のみ自動で今日に進める。
+  // ユーザーが意図的に選んだ過去日付は保護される。
   ['weightDate', 'foodDate'].forEach(id => {
     const el = $(id);
-    if (el && el.value && el.value < today) el.value = today;
+    if (el && el.value && el.value === oldToday) el.value = today;
   });
+  lastSeenToday = today;
   render();
   // グラフタブが開いていればチャートも再描画
   if ($('tabChart') && $('tabChart').classList.contains('active')) {
